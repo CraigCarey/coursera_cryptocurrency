@@ -59,7 +59,11 @@ public class Main {
             System.exit(-1);
         }
 
-
+        // (Extra Credit)
+        if (!TestMaxFees(pk_scrooge, pk_alice)) {
+            System.out.println("TestMaxFees Failed!");
+            System.exit(-1);
+        }
 
         System.out.println("Passed!");
     }
@@ -262,6 +266,35 @@ public class Main {
         Transaction[] handledTxs = txHandler.handleTxs(unhandledTxs);
 
         return !tx2IsValid && handledTxs.length == 0;
+    }
+
+    private static boolean TestMaxFees(KeyPair pk_scrooge, KeyPair pk_alice) throws SignatureException
+    {
+        Tx tx1 = new Tx();
+        tx1.addOutput(10.0, pk_scrooge.getPublic());
+        byte[] initialHash = BigInteger.valueOf(0).toByteArray();
+        tx1.addInput(initialHash, 0);
+        tx1.signTx(pk_scrooge.getPrivate(), 0);
+        UTXOPool utxoPool = new UTXOPool();
+        UTXO utxo = new UTXO(tx1.getHash(), 0);
+        utxoPool.addUTXO(utxo, tx1.getOutput(0));
+
+        Tx tx2 = new Tx();
+        tx2.addInput(tx1.getHash(), 0);
+        tx2.addOutput(10.0, pk_alice.getPublic());
+        tx2.signTx(pk_scrooge.getPrivate(), 0);
+
+        Tx tx3 = new Tx();
+        tx3.addOutput(9, pk_scrooge.getPublic());
+        tx3.addInput(tx1.getHash(), 0);
+        tx3.signTx(pk_scrooge.getPrivate(), 0);
+
+        MaxFeeTxHandler txHandler = new MaxFeeTxHandler(utxoPool);
+
+        Transaction[] unhandledTxs = new Transaction[]{tx2, tx3};
+        Transaction[] handledTxs = txHandler.handleTxs(unhandledTxs);
+
+        return (handledTxs.length == 1) && (handledTxs[0] == tx3);
     }
 
     public static class Tx extends Transaction {
